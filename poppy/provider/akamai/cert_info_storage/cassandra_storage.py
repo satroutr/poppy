@@ -206,7 +206,7 @@ class CassandraSanInfoStorage(base.BaseAkamaiSanInfoStorage):
             'ipVersion': ipVersion,
             'slot-deployment.class': slot_deployment_klass,
             'enabled': enabled,
-            'product': 'ion_premier'
+            'product': 'wsd'
         }
 
         if any([i for i in [jobId, issuer, ipVersion, slot_deployment_klass]
