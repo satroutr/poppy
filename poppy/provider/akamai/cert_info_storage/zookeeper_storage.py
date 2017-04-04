@@ -81,7 +81,7 @@ class ZookeeperSanInfoStorage(base.BaseAkamaiSanInfoStorage):
             'createType': 'modSan',
             'ipVersion': ipVersion,
             'slot-deployment.class': slot_deployment_klass,
-            'product': 'ion_premier'
+            'product': 'wsd'
         }
 
     def save_cert_last_ids(self, san_cert_name,
