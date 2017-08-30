@@ -445,9 +445,7 @@ class CertificateController(base.CertificateBase):
                         continue
 
                     # adding sans should get them cloned into sni host names
-                    resp_json['csr']['sans'] = resp_json['csr']['sans'].append(
-                        cert_obj.domain_name
-                    )
+                    resp_json['csr']['sans'].append(cert_obj.domain_name)
 
                     # PUT the enrollment including the modifications
                     headers = {
