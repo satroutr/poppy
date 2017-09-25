@@ -13,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-
 from oslo_config import cfg
 from oslo_log import log
 from taskflow import task
 
 from poppy.distributed_task.utils import memoized_controllers
-from poppy.transport.pecan.models.request import ssl_certificate
+from poppy.model import ssl_certificate
 
 LOG = log.getLogger(__name__)
 
@@ -31,17 +29,12 @@ conf(project='poppy', prog='poppy', args=[])
 class DeleteProviderSSLCertificateTask(task.Task):
     default_provides = "responders"
 
-    def execute(self, providers_list, domain_name, cert_type, project_id, flavor_id):
+    def execute(self, providers_list, domain_name, cert_type,
+                project_id, flavor_id):
         service_controller = memoized_controllers.task_controllers('poppy')
 
-        cert_obj = {
-            'domain_name': domain_name,
-            'cert_type': cert_type,
-            'project_id': project_id,
-            'flavor_id': flavor_id
-        }
-
-        cert_obj = ssl_certificate.load_from_json(json.loads(cert_obj))
+        cert_obj = ssl_certificate.SSLCertificate(flavor_id, domain_name,
+                                                  cert_type, project_id)
 
         responders = []
         # try to delete all certificates from each provider
