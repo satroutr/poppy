@@ -18,7 +18,6 @@ import datetime
 import json
 
 from oslo_log import log
-from six.moves import urllib
 
 from poppy.provider.akamai import utils
 from poppy.provider import base
@@ -558,70 +557,122 @@ class CertificateController(base.CertificateBase):
 
     def delete_certificate(self, cert_obj):
         if cert_obj.cert_type == 'sni':
-            # get change id
-            first_provider_cert_details = (
-                list(cert_obj.cert_details.values())[0].get("extra_info", None)
-            )
-            change_url = first_provider_cert_details.get('change_url')
-
-            if first_provider_cert_details is None or change_url is None:
-                return self.responder.ssl_certificate_deleted(
-                    cert_obj.domain_name,
-                    {
-                        'status': 'failed',
-                        'reason': (
-                            'Cert is missing details required for delete '
-                            'operation {0}.'.format(
-                                first_provider_cert_details)
-                        )
-                    }
+            try:
+                found, found_cert = (
+                    self._check_domain_already_exists_on_sni_certs(
+                        cert_obj.domain_name
+                    )
                 )
 
-            headers = {
-                'Accept': 'application/vnd.akamai.cps.change-id.v1+json'
-            }
-
-            akamai_change_url = urllib.parse.urljoin(
-                str(self.driver.akamai_conf.policy_api_base_url),
-                change_url
-            )
-
-            # delete call to cps api to cancel the change
-            resp = self.cps_api_client.delete(
-                akamai_change_url,
-                headers=headers
-            )
-            if resp.status_code != 200:
-                LOG.error(
-                    "Certificate delete for {0} failed. "
-                    "Status code {1}. Response {2}.".format(
+                if found is False:
+                    return self.responder.ssl_certificate_deleted(
                         cert_obj.domain_name,
-                        resp.status_code,
-                        resp.text,
-                    ))
-                return self.responder.ssl_certificate_deleted(
-                    cert_obj.domain_name,
-                    {
-                        'status': 'failed',
-                        'reason': 'Delete request for {0} failed.'.format(
-                            cert_obj.domain_name)
-                    }
+                        {
+                            'status': 'failed',
+                            'reason': (
+                                'Domain does not exist on any certificate '
+                            )
+                        }
+                    )
+
+                enrollment_id = (
+                    self.cert_info_storage.get_cert_enrollment_id(
+                        found_cert))
+
+                # GET the enrollment by ID
+                headers = {
+                    'Accept': ('application/vnd.akamai.cps.enrollment.v1+'
+                               'json')
+                }
+                resp = self.cps_api_client.get(
+                    self.cps_api_base_url.format(
+                        enrollmentId=enrollment_id),
+                    headers=headers
                 )
-            else:
-                LOG.info(
-                    "Successfully cancelled {0}, {1}".format(
+                if resp.status_code not in [200, 202]:
+                    raise RuntimeError(
+                        'CPS Request failed. Unable to GET enrollment '
+                        'with id {0} Exception: {1}'.format(
+                            enrollment_id, resp.text))
+
+                resp_json = json.loads(resp.text)
+                # check enrollment does not have any pending changes
+                if len(resp_json['pendingChanges']) > 0:
+                    LOG.info("{0} has pending changes, skipping...".format(
+                        found_cert))
+                    return self.responder.ssl_certificate_deleted(
                         cert_obj.domain_name,
-                        resp.text)
+                        {
+                            'status': 'failed due to pending changes',
+                            'reason': 'Delete request for {0} failed'
+                                .format(cert_obj.domain_name)
+                        }
+                    )
+
+                # remove domain name from sans
+                resp_json['csr']['sans'].remove(cert_obj.domain_name)
+                resp_json['networkConfiguration']['sni']['dnsNames'] \
+                    .remove(cert_obj.domain_name)
+
+                # PUT the enrollment including the modifications
+                headers = {
+                    'Content-Type': (
+                        'application/vnd.akamai.cps.enrollment.v1+json'),
+                    'Accept': (
+                        'application/vnd.akamai.cps.enrollment-status.v1+'
+                        'json')
+                }
+                resp = self.cps_api_client.put(
+                    self.cps_api_base_url.format(
+                        enrollmentId=enrollment_id),
+                    data=json.dumps(resp_json),
+                    headers=headers
                 )
-                return self.responder.ssl_certificate_deleted(
-                    cert_obj.domain_name,
-                    {
-                        'status': 'deleted',
-                        'deleted_at': str(datetime.datetime.now()),
-                        'reason': 'Delete request for {0} succeeded.'.format(
-                            cert_obj.domain_name)
-                    }
-                )
+                if resp.status_code not in [200, 202]:
+                    raise RuntimeError(
+                        'CPS Request failed. Unable to modify enrollment '
+                        'with id {0} Exception: {1}'.format(
+                            enrollment_id, resp.text))
+                if resp.status_code != 202:
+                    LOG.error(
+                        "Certificate delete for {0} failed. "
+                        "Status code {1}. Response {2}.".format(
+                            cert_obj.domain_name,
+                            resp.status_code,
+                            resp.text,
+                        ))
+                    return self.responder.ssl_certificate_deleted(
+                        cert_obj.domain_name,
+                        {
+                            'status': 'failed',
+                            'reason': 'Delete request for {0} failed.'.format(
+                                cert_obj.domain_name)
+                        }
+                    )
+                else:
+                    LOG.info(
+                        "Successfully cancelled {0}, {1}".format(
+                            cert_obj.domain_name,
+                            resp.text)
+                    )
+                    return self.responder.ssl_certificate_deleted(
+                        cert_obj.domain_name,
+                        {
+                            'status': 'deleted',
+                            'deleted_at': str(datetime.datetime.now()),
+                            'reason': 'Delete request for {0} succeeded.'
+                                .format(cert_obj.domain_name)
+                        }
+                    )
+            except Exception as exc:
+                LOG.exception(
+                    "Unable to delete certificate {0}, "
+                    "Error: {1}".format(cert_obj.domain_name, exc))
+                return self.responder.ssl_certificate_deleted(None, {
+                    'status': 'failed',
+                    'reason': "Delete cert type {0} failed due to {1}."
+                    .format(cert_obj.cert_type, exc)
+                })
         else:
             return self.responder.ssl_certificate_provisioned(None, {
                 'status': 'ignored',
