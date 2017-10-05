@@ -936,32 +936,139 @@ class TestCertificates(base.TestCase):
             responder['Akamai']['extra_info']['action']
         )
 
-    def test_delete_certificate_positive(self):
+    def test_cert_delete_domain_exists_on_sni_certs(self):
+
         cert_obj = ssl_certificate.load_from_json({
             "flavor_id": "flavor_id",
             "domain_name": "www.abc.com",
             "cert_type": "sni",
-            "project_id": "project_id",
-            "cert_details": {
-                'Akamai': {
-                    'extra_info': {
-                        'change_url':  "/cps/v2/enrollments/234/changes/100"
-                    }
-                }
-            }
+            "project_id": "project_id"
         })
 
+        self.mock_sans_alternate.return_value = []
+
         controller = certificates.CertificateController(self.driver)
-        controller.cps_api_client.delete.return_value = mock.Mock(
+
+        responder = controller.delete_certificate(cert_obj)
+
+        self.assertEqual(
+            'failed',
+            responder['Akamai']['extra_info']['status']
+        )
+        self.assertEqual(
+            'Domain does not exist on any certificate ',
+            responder['Akamai']['extra_info']['reason']
+        )
+
+    def test_cert_delete_sni_cert_pending_changes(self):
+
+        cert_obj = ssl_certificate.load_from_json({
+            "flavor_id": "flavor_id",
+            "domain_name": "www.abc.com",
+            "cert_type": "sni",
+            "project_id": "project_id"
+        })
+
+        self.mock_sans_alternate.return_value = cert_obj.domain_name
+
+        controller = certificates.CertificateController(self.driver)
+        controller.cert_info_storage.get_enrollment_id.return_value = 1234
+
+        controller.cps_api_client.get.return_value = mock.Mock(
             status_code=200,
             text=json.dumps({
-                "change": "/cps/v2/enrollments/234/changes/100"
+                "csr": {
+                    "cn": "www.example.com",
+                    "c": "US",
+                    "st": "MA",
+                    "l": "Cambridge",
+                    "o": "Akamai",
+                    "ou": "WebEx",
+                    "sans": [
+                        "example.com",
+                        "test.example.com"
+                    ]
+                },
+                "pendingChanges": [
+                    "/cps/v2/enrollments/234/changes/10000"
+                ]
+            })
+        )
+        controller.cps_api_client.put.return_value = mock.Mock(
+            status_code=500,
+            text='INTERNAL SERVER ERROR'
+        )
+
+        responder = controller.delete_certificate(cert_obj)
+
+        self.assertEqual('www.abc.com', responder['Akamai']['cert_domain'])
+        self.assertEqual(
+            'failed due to pending changes',
+            responder['Akamai']['extra_info']['status']
+        )
+        self.assertEqual(
+            'Delete request for www.abc.com failed',
+            responder['Akamai']['extra_info']['reason']
+        )
+
+    def test_cert_delete_sni_cert_positive(self):
+
+        cert_obj = ssl_certificate.load_from_json({
+            "flavor_id": "flavor_id",
+            "domain_name": "www.abc.com",
+            "cert_type": "sni",
+            "project_id": "project_id"
+        })
+
+        self.mock_sans_alternate.return_value = cert_obj.domain_name
+
+        controller = certificates.CertificateController(self.driver)
+        controller.cert_info_storage.get_enrollment_id.return_value = 1234
+
+        controller.cps_api_client.get.return_value = mock.Mock(
+            status_code=200,
+            text=json.dumps({
+                "csr": {
+                    "cn": "www.example.com",
+                    "c": "US",
+                    "st": "MA",
+                    "l": "Cambridge",
+                    "o": "Akamai",
+                    "ou": "WebEx",
+                    "sans": [
+                        "example.com",
+                        "test.example.com",
+                        "www.abc.com"
+                    ]
+                },
+                "networkConfiguration": {
+                    "mustHaveCiphers": "ak-akamai-default",
+                    "networkType": "standard-worldwide",
+                    "preferredCiphers": "ak-akamai-default",
+                    "sni": {
+                        "cloneDnsNames": True,
+                        "dnsNames": [
+                            "example.com",
+                            "test.example.com",
+                            "www.abc.com"
+                        ]
+                    }
+                },
+                "pendingChanges": []
+            })
+        )
+        controller.cps_api_client.put.return_value = mock.Mock(
+            status_code=202,
+            text=json.dumps({
+                "enrollment": "/cps/v2/enrollments/234",
+                "changes": [
+                    "/cps/v2/enrollments/234/changes/10001"
+                ]
             })
         )
 
         responder = controller.delete_certificate(cert_obj)
         self.assertEqual('www.abc.com', responder['Akamai']['cert_domain'])
-        self.assertTrue('deleted_at' in responder['Akamai']['extra_info'])
         self.assertEqual(
             'deleted',
             responder['Akamai']['extra_info']['status']
@@ -971,75 +1078,12 @@ class TestCertificates(base.TestCase):
             responder['Akamai']['extra_info']['reason']
         )
 
-    def test_delete_certificate_cps_api_failure(self):
-        cert_obj = ssl_certificate.load_from_json({
-            "flavor_id": "flavor_id",
-            "domain_name": "www.abc.com",
-            "cert_type": "sni",
-            "project_id": "project_id",
-            "cert_details": {
-                'Akamai': {
-                    'extra_info': {
-                        'change_url':  "/cps/v2/enrollments/234/changes/100"
-                    }
-                }
-            }
-        })
-
-        controller = certificates.CertificateController(self.driver)
-        controller.cps_api_client.delete.return_value = mock.Mock(
-            status_code=500,
-            text='INTERNAL SERVER ERROR'
-        )
-
-        responder = controller.delete_certificate(cert_obj)
-        self.assertEqual('www.abc.com', responder['Akamai']['cert_domain'])
-        self.assertEqual(
-            'failed',
-            responder['Akamai']['extra_info']['status']
-        )
-        self.assertEqual(
-            'Delete request for www.abc.com failed.',
-            responder['Akamai']['extra_info']['reason']
-        )
-
-    def test_delete_certificate_missing_provider_details(self):
-        cert_obj = ssl_certificate.load_from_json({
-            "flavor_id": "flavor_id",
-            "domain_name": "www.abc.com",
-            "cert_type": "sni",
-            "project_id": "project_id",
-            "cert_details": {
-                'Akamai': {
-                    'extra_info': {}
-                }
-            }
-        })
-
-        controller = certificates.CertificateController(self.driver)
-        controller.cps_api_client.delete.return_value = mock.Mock(
-            status_code=500,
-            text='INTERNAL SERVER ERROR'
-        )
-
-        responder = controller.delete_certificate(cert_obj)
-        self.assertEqual('www.abc.com', responder['Akamai']['cert_domain'])
-        self.assertEqual(
-            'failed',
-            responder['Akamai']['extra_info']['status']
-        )
-        self.assertEqual(
-            'Cert is missing details required for delete operation {}.',
-            responder['Akamai']['extra_info']['reason']
-        )
-
     def test_delete_certificate_unsupported_cert_type(self):
         cert_obj = ssl_certificate.load_from_json({
             "flavor_id": "flavor_id",
             "domain_name": "www.abc.com",
             "cert_type": "san",
-            "project_id": "project_id",
-            "cert_details": {}
+            "project_id": "project_id"
         })
 
         controller = certificates.CertificateController(self.driver)
