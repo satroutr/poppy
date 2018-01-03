@@ -41,20 +41,6 @@ class TestCertificates(base.TestCase):
             'example.net'
         )
         self.driver.akamai_conf.policy_api_base_url = 'https://aka-base.com/'
-        san_by_host_patcher = mock.patch(
-            'poppy.provider.akamai.utils.get_sans_by_host'
-        )
-        self.mock_get_sans_by_host = san_by_host_patcher.start()
-        self.addCleanup(san_by_host_patcher.stop)
-
-        ssl_number_of_hosts_patcher = mock.patch(
-            'poppy.provider.akamai.utils.get_ssl_number_of_hosts'
-        )
-        self.mock_get_ssl_number_of_hosts = ssl_number_of_hosts_patcher.start()
-        self.addCleanup(ssl_number_of_hosts_patcher.stop)
-
-        self.mock_get_sans_by_host.return_value = []
-        self.mock_get_ssl_number_of_hosts.return_value = 10
 
         sans_alternate_patcher = mock.patch(
             'poppy.provider.akamai.utils.get_sans_by_host_alternate'
@@ -414,7 +400,7 @@ class TestCertificates(base.TestCase):
             "flavor_id": "premium"
         }
 
-        self.mock_get_sans_by_host.return_value = [
+        self.mock_sans_alternate.return_value = [
             data["domain_name"]
         ]
 
@@ -470,7 +456,7 @@ class TestCertificates(base.TestCase):
             "flavor_id": "premium"
         }
 
-        self.mock_get_sans_by_host.side_effect = Exception(
+        self.mock_sans_alternate.side_effect = Exception(
             "Mock -- Error getting sans by host name!"
         )
 
@@ -636,7 +622,7 @@ class TestCertificates(base.TestCase):
         )
 
     def test_cert_create_san_exceeds_host_name_limit(self):
-        self.mock_get_ssl_number_of_hosts.return_value = 100
+        self.mock_num_hosts_alternate.return_value = 100
 
         data = {
             "cert_type": "san",

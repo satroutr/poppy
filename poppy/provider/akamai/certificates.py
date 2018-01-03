@@ -134,7 +134,7 @@ class CertificateController(base.CertificateBase):
                     # Check san_cert to enforce number of hosts hasn't
                     # reached the limit. If the current san_cert is at max
                     # capacity continue to the next san_cert
-                    san_hosts = utils.get_ssl_number_of_hosts(
+                    san_hosts = utils.get_ssl_number_of_hosts_alternate(
                         '.'.join(
                             [
                                 san_cert_name,
@@ -315,7 +315,7 @@ class CertificateController(base.CertificateBase):
         found = False
         found_cert = None
         for san_cert_name in self.san_cert_cnames:
-            sans = utils.get_sans_by_host(
+            sans = utils.get_sans_by_host_alternate(
                 '.'.join(
                     [
                         san_cert_name,
