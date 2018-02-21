@@ -178,37 +178,38 @@ class UpdateCertStatusTask(task.Task):
         self.service_storage = service_controller.storage_controller
 
     def execute(self, project_id, cert_obj_json, status_change_to):
-        if cert_obj_json != "":
-            cert_obj = ssl_certificate.load_from_json(
-                json.loads(cert_obj_json)
+        if not cert_obj_json:
+            return
+        cert_obj = ssl_certificate.load_from_json(
+            json.loads(cert_obj_json)
+        )
+        cert_details = cert_obj.cert_details
+
+        if status_change_to:
+            cert_details['Akamai']['extra_info']['status'] = (
+                status_change_to)
+            cert_details['Akamai'] = json.dumps(cert_details['Akamai'])
+            self.storage_controller.update_certificate(
+                cert_obj.domain_name,
+                cert_obj.cert_type,
+                cert_obj.flavor_id,
+                cert_details
             )
-            cert_details = cert_obj.cert_details
 
-            if status_change_to != "":
-                cert_details['Akamai']['extra_info']['status'] = (
-                    status_change_to)
-                cert_details['Akamai'] = json.dumps(cert_details['Akamai'])
-                self.storage_controller.update_certificate(
-                    cert_obj.domain_name,
-                    cert_obj.cert_type,
-                    cert_obj.flavor_id,
-                    cert_details
+            service_obj = (
+                self.service_storage.
+                get_service_details_by_domain_name(cert_obj.domain_name)
+            )
+            # Update provider details
+            if service_obj:
+                service_obj.provider_details['Akamai'].\
+                    domains_certificate_status.\
+                    set_domain_certificate_status(cert_obj.domain_name,
+                                                  status_change_to)
+                self.service_storage.update_provider_details(
+                    project_id,
+                    service_obj.service_id,
+                    service_obj.provider_details
                 )
-
-                service_obj = (
-                    self.service_storage.
-                    get_service_details_by_domain_name(cert_obj.domain_name)
-                )
-                # Update provider details
-                if service_obj is not None:
-                    service_obj.provider_details['Akamai'].\
-                        domains_certificate_status.\
-                        set_domain_certificate_status(cert_obj.domain_name,
-                                                      status_change_to)
-                    self.service_storage.update_provider_details(
-                        project_id,
-                        service_obj.service_id,
-                        service_obj.provider_details
-                    )
-            else:
-                pass
+        else:
+            pass
