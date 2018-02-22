@@ -289,7 +289,7 @@ class DefaultServicesController(base.ServicesController):
                 domain.domain = customer_domain
 
             # old domains need to bind as well
-            elif domain.certificate == 'san':
+            elif domain.certificate in ['san', 'sni']:
                 cert_for_domain = (
                     self.ssl_certificate_storage.get_certs_by_domain(
                         domain.domain,
@@ -351,7 +351,7 @@ class DefaultServicesController(base.ServicesController):
                             customer_domain,
                             service_new.service_id,
                             store)
-                elif domain.certificate == 'san':
+                elif domain.certificate in ['san', 'sni']:
                     cert_for_domain = (
                         self.ssl_certificate_storage.get_certs_by_domain(
                             domain.domain,

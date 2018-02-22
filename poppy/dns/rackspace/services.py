@@ -587,7 +587,7 @@ class ServicesController(base.ServicesBase):
                     if (
                         old_domain.protocol == 'http' and
                         domain.protocol == 'https' and
-                        domain.certificate == 'san'
+                        domain.certificate in ['san', 'sni']
                     ):
                         upgraded_domains.add(domain.domain)
                         break
@@ -606,7 +606,7 @@ class ServicesController(base.ServicesBase):
                     for link in links:
                         if (
                             link['domain'] == domain_name and
-                            link.get('certificate', None) == 'san' and
+                            link.get('certificate', None) in ['san', 'sni'] and
                             link['href'] is not None and
                             link['old_operator_url'] is not None
                         ):
@@ -717,7 +717,7 @@ class ServicesController(base.ServicesBase):
                             if (
                                 old_domain.protocol == 'http' and
                                 domain.protocol == 'https' and
-                                domain.certificate == 'san'
+                                domain.certificate in ['san', 'sni']
                             ):
                                 is_upgrade = True
                                 break

@@ -61,7 +61,7 @@ class CreateProviderServicesTask(task.Task):
                 service_id
             )
             for domain in service_obj.domains:
-                if domain.certificate == 'san':
+                if domain.certificate in ['san', 'sni']:
                     cert_for_domain = (
                         self.ssl_certificate_storage.get_certs_by_domain(
                             domain.domain,
