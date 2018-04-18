@@ -19,6 +19,7 @@ RUN python ez_setup.py
 # pip
 RUN wget https://bootstrap.pypa.io/get-pip.py
 RUN python get-pip.py
+RUN pip install -U pip==9.0.3
 
 # uwsgi 
 RUN pip install uwsgi 
