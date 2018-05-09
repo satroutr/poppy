@@ -34,12 +34,14 @@ class SSLCertificate(common.DictSerializableModel):
                  domain_name,
                  cert_type,
                  project_id=None,
-                 cert_details=None):
+                 cert_details=None,
+                 property_activated=False):
         self.flavor_id = flavor_id
         self.domain_name = domain_name
         self.cert_type = cert_type
         self.cert_details = cert_details
         self.project_id = project_id
+        self.property_activated = property_activated
 
     @property
     def flavor_id(self):

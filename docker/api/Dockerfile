@@ -25,7 +25,7 @@ RUN pip install -U pip==9.0.3
 RUN pip install uwsgi 
 
 # Pull project
-RUN git clone https://github.com/openstack/poppy.git /home/poppy
+RUN git clone https://github.com/rackerlabs/poppy.git /home/poppy
 
 # Install Requirements
 RUN sudo pip install -r /home/poppy/requirements/requirements.txt
