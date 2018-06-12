@@ -19,7 +19,7 @@ GEO_REGION_ZONES = [
     'EMEA(Europe, Middle East and Africa)',
     'Japan',
     'India',
-    'Australia/NZ',
+    'Australia',
     'Rest Of APAC'
 ]
 

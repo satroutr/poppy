@@ -19,7 +19,7 @@ from poppy.model.helpers import geo_zones
 
 LOG = log.getLogger(__name__)
 
-REGIONS = ['North America', 'South America', 'EMEA', 'Japan', 'India', 'APAC']
+REGIONS = ['North America', 'South America', 'EMEA', 'Japan', 'India', "Australia", 'APAC']
 
 REGION_COUNTRY_MAPPING = {
     'North America': [
