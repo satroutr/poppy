@@ -1085,6 +1085,12 @@ class ServiceController(base.ServiceBase):
         return configuration_number
 
     def _get_provider_access_url(self, domain_obj, dp, edge_host_name=None):
+        """
+        :param domain_obj: domain object
+        :param dp:
+        :param edge_host_name: Provider access URL
+        :return: returns provider access URL
+        """
         provider_access_url = None
         if domain_obj.protocol == 'http':
             provider_access_url = self.driver.akamai_access_url_link
@@ -1093,10 +1099,10 @@ class ServiceController(base.ServiceBase):
                 provider_access_url = '.'.join(
                     ['.'.join(dp.split('.')[1:]),
                      self.driver.akamai_https_access_url_suffix])
-            elif domain_obj.certificate == 'san':
+            elif domain_obj.certificate in ['san', 'sni']:
                 if edge_host_name is None:
                     raise ValueError(
-                        "No EdgeHost name provided for SAN Cert")
+                        "No EdgeHost name provided for Cert")
                 # ugly fix for existing san cert domains, but we will
                 # have to take it for now
                 elif edge_host_name.endswith(
@@ -1106,10 +1112,6 @@ class ServiceController(base.ServiceBase):
                     provider_access_url = '.'.join(
                         [edge_host_name,
                          self.driver.akamai_https_access_url_suffix])
-            elif domain_obj.certificate == 'sni':
-                if edge_host_name is None:
-                    raise ValueError("No EdgeHost name provided for SNI Cert")
-                provider_access_url = edge_host_name
             elif domain_obj.certificate == 'custom':
                 provider_access_url = '.'.join(
                     [dp, self.driver.akamai_https_access_url_suffix])
