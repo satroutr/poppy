@@ -46,6 +46,15 @@ class CreateProviderServicesTask(task.Task):
     default_provides = "responders"
 
     def execute(self, providers_list_json, project_id, service_id):
+        """Create the responders from provider list.
+
+        :param unicode providers_list_json: json provided by the user/opium
+        :param unicode project_id: project id of the user
+        :param unicode service_id: service id is the uuid generated
+
+        :return: returns responders
+        :rtype: list[dict]
+        """
         service_controller, self.storage_controller = \
             memoized_controllers.task_controllers('poppy', 'storage')
 
@@ -104,6 +113,19 @@ class CreateServiceDNSMappingTask(task.Task):
     default_provides = "dns_responder"
 
     def execute(self, responders, retry_sleep_time, project_id, service_id):
+        """Creates the mapping between dns service and provider url.
+
+        The resulting domain is the cname created at rackspace dns which
+        used by customer for their by vanity domain.
+
+        :param list[dict] responders: list of responder
+        :param int retry_sleep_time: sleep time
+        :param unicode project_id: project id of the user
+        :param unicode service_id: uuid
+
+        :return: dict of dns_responder
+        :rtype: dict
+        """
         service_controller, dns = \
             memoized_controllers.task_controllers('poppy', 'dns')
 
@@ -134,6 +156,13 @@ class CreateServiceDNSMappingTask(task.Task):
 
     def revert(self, responders, retry_sleep_time,
                project_id, service_id, **kwargs):
+        """Reverts the create dnsmapping task is failed.
+
+        :param list responders: list of responder
+        :param int retry_sleep_time: sleep time
+        :param unicode project_id: project id of user
+        :param unicode service_id: service id of the service(generated uuid)
+        """
 
         if self.name in kwargs['flow_failures'].keys():
             retries = conf[DNS_GROUP].retries
@@ -208,6 +237,14 @@ class CreateLogDeliveryContainerTask(task.Task):
     default_provides = "log_responders"
 
     def execute(self, project_id, auth_token, service_id):
+        """If enabled it creates a object storage container to store logs.
+
+        :param unicode project_id: project id of user
+        :param unicode auth_token: auth_token from keystone
+        :param unicode service_id: the uuid generated
+        :return: Log responders
+        :rtype: list or list[dict]
+        """
         service_controller, self.storage_controller = \
             memoized_controllers.task_controllers('poppy', 'storage')
 
@@ -246,6 +283,14 @@ class GatherProviderDetailsTask(task.Task):
     default_provides = "provider_details_dict"
 
     def execute(self, responders, dns_responder, log_responders):
+        """Gathers the status of create service, create dns and log delivery.
+
+        :param list[dict] responders:
+        :param dict dns_responder:
+        :param list[dict] log_responders: list of log_responder
+        :return: dict of provider_details_dict
+        :rtype: dict[str, collections.OrderedDict]
+        """
         provider_details_dict = {}
         for responder in responders:
             for provider_name in responder:

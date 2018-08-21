@@ -31,6 +31,17 @@ class DeleteProviderSSLCertificateTask(task.Task):
 
     def execute(self, providers_list, domain_name, cert_type,
                 project_id, flavor_id):
+        """Build responder from provider list of certificate details.
+
+        :param list providers_list: list of providers
+        :param unicode domain_name: domain name of the user
+        :param unicode cert_type: type of the certificate
+        :param unicode project_id: project id of the user
+        :param unicode flavor_id: flavor of the service
+
+        :return: list of responder
+        :rtype: list[dict]
+        """
         service_controller = memoized_controllers.task_controllers('poppy')
 
         cert_obj = ssl_certificate.SSLCertificate(flavor_id, domain_name,
@@ -54,6 +65,13 @@ class DeleteProviderSSLCertificateTask(task.Task):
 class SendNotificationTask(task.Task):
 
     def execute(self, project_id, responders, domain_name, cert_type):
+        """Send mail to user for certificate deletion.
+
+        :param unicode project_id: project id of the user
+        :param list[dict] responders: list of responder
+        :param unicode domain_name: domain name of the user
+        :param unicode cert_type: certificate type of the user
+        """
         service_controller = memoized_controllers.task_controllers('poppy')
 
         notification_content = (
@@ -85,6 +103,12 @@ class SendNotificationTask(task.Task):
 class DeleteStorageSSLCertificateTask(task.Task):
 
     def execute(self, project_id, domain_name, cert_type):
+        """Delete certificate details from cassandra.
+
+        :param unicode project_id: project id of the user
+        :param unicode domain_name: domain name of the user
+        :param unicode cert_type: certificate type of the user
+        """
         service_controller, self.ssl_certificate_manager = \
             memoized_controllers.task_controllers('poppy', 'ssl_certificate')
         self.storage_controller = self.ssl_certificate_manager.storage

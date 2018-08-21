@@ -42,6 +42,14 @@ conf.register_opts(DNS_OPTIONS, group=DNS_GROUP)
 
 class UpdateServiceStateTask(task.Task):
     def execute(self, project_id, service_obj, state):
+        """Update the operator status of service to cassandra.
+
+        Update the status of the operator to the storage for services.
+
+        :param unicode project_id: project id of the user
+        :param unicode service_obj: json object of the service
+        :param bool state: operator status of service
+        """
         service_obj_json = json.loads(service_obj)
         service_obj = service.load_from_json(service_obj_json)
 
@@ -58,6 +66,15 @@ class UpdateServiceStateTask(task.Task):
 
 class FixDNSChainTask(task.Task):
     def execute(self, service_obj, project_id, retry_sleep_time):
+        """Enable/Fix DNS record for service.
+
+        While updating the service state reestablish the link between
+        CNAME created at rackspace DNS.
+
+        :param unicode service_obj: json object of the service
+        :param unicode project_id: project id of the user
+        :param int retry_sleep_time: sleep time
+        """
         service_obj_json = json.loads(service_obj)
         service_obj = service.load_from_json(service_obj_json)
 
@@ -104,6 +121,12 @@ class FixDNSChainTask(task.Task):
                                            project_id))
 
     def revert(self, service_obj, project_id, retry_sleep_time, **kwargs):
+        """Revert if fixing dns record of service failed.
+
+        :param unicode service_obj: json object of the service
+        :param unicode project_id: project id of the user
+        :param int retry_sleep_time: sleep time
+        """
         if self.name in kwargs['flow_failures'].keys():
             retries = conf[DNS_GROUP].retries
             current_progress = (1.0 / retries)
@@ -150,6 +173,15 @@ class FixDNSChainTask(task.Task):
 
 class BreakDNSChainTask(task.Task):
     def execute(self, service_obj, project_id, retry_sleep_time):
+        """Break the DNS chain for service.
+
+        While updating the service state break the link between CNAME
+        created at rackspace DNS.
+
+        :param unicode service_obj: json object of the service
+        :param unicode project_id: project id of the user
+        :param int retry_sleep_time: sleep time
+        """
         service_obj_json = json.loads(service_obj)
         service_obj = service.load_from_json(service_obj_json)
 
@@ -197,6 +229,12 @@ class BreakDNSChainTask(task.Task):
         return
 
     def revert(self, service_obj, project_id, retry_sleep_time, **kwargs):
+        """Revert if breaking the dns record chain fails.
+
+        :param unicode service_obj: json object of the service
+        :param unicode project_id: project id of the user
+        :param int retry_sleep_time: sleep time
+        """
         if self.name in kwargs['flow_failures'].keys():
             retries = conf[DNS_GROUP].retries
             current_progress = (1.0 / retries)
